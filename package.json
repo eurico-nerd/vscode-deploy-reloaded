@@ -80567,7 +80567,6 @@
   "@types/pug": "^2.0.10",
   "@types/sanitize-filename": "^1.6.3",
   "@types/tmp": "^0.2.6",
-  "@types/uuid": "^3.4.5",
   "@types/vscode": "^1.38.0",
   "@types/ws": "^5.1.2",
   "@vscode/test-electron": "^2.4.1",
@@ -80639,7 +80638,6 @@
   "ssh2-sftp-client": "2.3.0",
   "tmp": "^0.2.3",
   "uglify-js": "^3.6.0",
-  "uuid": "^3.3.3",
   "vscode-helpers": "^5.1.1",
   "ws": "^5.2.2"
  }
