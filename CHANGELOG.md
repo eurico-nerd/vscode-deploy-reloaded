@@ -2,6 +2,25 @@
 
 [![Share via Facebook](https://raw.githubusercontent.com/mkloubert/vscode-deploy-reloaded/master/img/share/Facebook.png)](https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fmarketplace.visualstudio.com%2Fitems%3FitemName%3Dmkloubert.vscode-deploy-reloaded&quote=vscode-deploy-reloaded) [![Share via Twitter](https://raw.githubusercontent.com/mkloubert/vscode-deploy-reloaded/master/img/share/Twitter.png)](https://twitter.com/intent/tweet?source=https%3A%2F%2Fmarketplace.visualstudio.com%2Fitems%3FitemName%3Dmkloubert.vscode-deploy-reloaded&text=vscode-deploy-reloaded:%20https%3A%2F%2Fmarketplace.visualstudio.com%2Fitems%3FitemName%3Dmkloubert.vscode-deploy-reloaded&via=mjkloubert) [![Share via Google+](https://raw.githubusercontent.com/mkloubert/vscode-deploy-reloaded/master/img/share/Google+.png)](https://plus.google.com/share?url=https%3A%2F%2Fmarketplace.visualstudio.com%2Fitems%3FitemName%3Dmkloubert.vscode-deploy-reloaded) [![Share via Pinterest](https://raw.githubusercontent.com/mkloubert/vscode-deploy-reloaded/master/img/share/Pinterest.png)](https://pinterest.com/pin/create/button/?url=https%3A%2F%2Fmarketplace.visualstudio.com%2Fitems%3FitemName%3Dmkloubert.vscode-deploy-reloaded&media=https://raw.githubusercontent.com/mkloubert/vscode-deploy-reloaded/master/img/demo1.gif&description=Recoded%20version%20of%20Visual%20Studio%20Code%20extension%20%27vs-deploy%27%2C%20which%20provides%20commands%20to%20deploy%20files%20to%20one%20or%20more%20destinations.) [![Share via Reddit](https://raw.githubusercontent.com/mkloubert/vscode-deploy-reloaded/master/img/share/Reddit.png)](https://www.reddit.com/submit?url=https%3A%2F%2Fmarketplace.visualstudio.com%2Fitems%3FitemName%3Dmkloubert.vscode-deploy-reloaded&title=vscode-deploy-reloaded) [![Share via LinkedIn](https://raw.githubusercontent.com/mkloubert/vscode-deploy-reloaded/master/img/share/LinkedIn.png)](https://www.linkedin.com/shareArticle?mini=true&url=https%3A%2F%2Fmarketplace.visualstudio.com%2Fitems%3FitemName%3Dmkloubert.vscode-deploy-reloaded&title=vscode-deploy-reloaded&summary=Recoded%20version%20of%20Visual%20Studio%20Code%20extension%20%27vs-deploy%27%2C%20which%20provides%20commands%20to%20deploy%20files%20to%20one%20or%20more%20destinations.&source=https%3A%2F%2Fmarketplace.visualstudio.com%2Fitems%3FitemName%3Dmkloubert.vscode-deploy-reloaded) [![Share via Wordpress](https://raw.githubusercontent.com/mkloubert/vscode-deploy-reloaded/master/img/share/Wordpress.png)](https://wordpress.com/press-this.php?u=https%3A%2F%2Fmarketplace.visualstudio.com%2Fitems%3FitemName%3Dmkloubert.vscode-deploy-reloaded&quote=vscode-deploy-reloaded&s=Recoded%20version%20of%20Visual%20Studio%20Code%20extension%20%27vs-deploy%27%2C%20which%20provides%20commands%20to%20deploy%20files%20to%20one%20or%20more%20destinations.&i=https://raw.githubusercontent.com/mkloubert/vscode-deploy-reloaded/master/img/demo1.gif) [![Share via Email](https://raw.githubusercontent.com/mkloubert/vscode-deploy-reloaded/master/img/share/Email.png)](mailto:?subject=vscode-deploy-reloaded&body=Recoded%20version%20of%20Visual%20Studio%20Code%20extension%20'vs-deploy'%2C%20which%20provides%20commands%20to%20deploy%20files%20to%20one%20or%20more%20destinations.:%20https%3A%2F%2Fmarketplace.visualstudio.com%2Fitems%3FitemName%3Dmkloubert.vscode-deploy-reloaded)
 
+## 0.90.0 (2026; maintained fork — dependency modernization)
+
+This is the first release of a maintained fork of [vscode-deploy-reloaded](https://github.com/mkloubert/vscode-deploy-reloaded) by Marcel Joachim Kloubert, published under a new name/publisher. It modernizes the toolchain and dependencies to eliminate the original's known vulnerabilities. The source remains licensed under LGPL-3.0.
+
+* toolchain: TypeScript 3.4 → 5.x, TSLint → ESLint 9, deprecated `vscode` dev package → `@types/vscode` + `@vscode/test-electron`, `@types/node` 10 → 18
+* dependency upgrades/replacements (security):
+  * `less` 2 → 4, `pug` 2 → 3, `tmp` 0.0.33 → 0.2, `marked` 0.7 → 4, `nodemailer` 4 → 9, `ip` 1 → 2
+  * removed unused `uuid` dependency
+  * `html-minifier` → `html-minifier-terser`
+  * `node-zip` → `adm-zip`
+  * `ssh2-sftp-client` 2 → 12
+  * `@slack/client` → `@slack/web-api` 7
+  * `dropbox` 2 → 10
+  * `public-ip` 2 → 7
+  * `vscode-helpers` 5 → 8
+  * `aws-sdk` v2 → modular `@aws-sdk/client-s3` v3 (note: the legacy SAML credential type has no v3 equivalent and is now unsupported)
+  * `azure-storage` → `@azure/storage-blob` v12
+* `npm audit`: reduced from 85 vulnerabilities (15 critical) to 4 (0 critical) — the remainder are non-applicable or internal to `vscode-helpers`
+
 ## 0.89.0 (August 17th, 2019; fixed HTML viewer)
 
 * File preview working ... s. [pull request #141](https://github.com/mkloubert/vscode-deploy-reloaded/pull/141)

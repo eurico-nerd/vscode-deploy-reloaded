@@ -1,9 +1,9 @@
 {
- "name": "vscode-deploy-reloaded",
+ "name": "nerd-deploy-reloaded",
  "displayName": "Deploy (Reloaded)",
- "description": "Deploys files of a workspace to a destination.",
- "version": "0.89.0",
- "publisher": "mkloubert",
+ "description": "Deploys files of a workspace to a destination. Maintained fork of vscode-deploy-reloaded with modernized, vulnerability-free dependencies.",
+ "version": "0.90.0",
+ "publisher": "eurico-nerd",
  "engines": {
   "vscode": "^1.38.0"
  },
@@ -80585,12 +80585,15 @@
  "author": {
   "name": "Marcel Joachim Kloubert"
  },
+ "contributors": [
+  "eurico-nerd (fork maintainer)"
+ ],
  "repository": {
   "type": "git",
-  "url": "https://github.com/mkloubert/vscode-deploy-reloaded"
+  "url": "https://github.com/eurico-nerd/vscode-deploy-reloaded"
  },
  "bugs": {
-  "url": "https://github.com/mkloubert/vscode-deploy-reloaded/issues"
+  "url": "https://github.com/eurico-nerd/vscode-deploy-reloaded/issues"
  },
  "readmeFilename": "README.md",
  "dependencies": {
