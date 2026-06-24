@@ -22,7 +22,7 @@ import * as deploy_plugins from '../plugins';
 import * as deploy_targets from '../targets';
 import * as Moment from 'moment';
 import * as Path from 'path';
-const Zip = require('node-zip');
+const AdmZip = require('adm-zip');
 
 
 /**
@@ -60,9 +60,7 @@ class ZipPlugin extends deploy_plugins.PluginBase<ZipTarget> {
 
         const LATEST_ZIP = await ME.getLatestZipFile(context.target);
 
-        const ZIP_FILE = Zip(await deploy_helpers.readFile(LATEST_ZIP), {
-            base64: false,
-        });
+        const ZIP_FILE = new AdmZip(await deploy_helpers.readFile(LATEST_ZIP));
 
         for (const F of context.files) {
             if (context.isCancelling) {
@@ -75,12 +73,10 @@ class ZipPlugin extends deploy_plugins.PluginBase<ZipTarget> {
                 let found = false;
                 let file = deploy_helpers.normalizePath(F.path + '/' + F.name);
 
-                if (ZIP_FILE.files) {
-                    for (const ZF in ZIP_FILE.files) {
-                        if (deploy_helpers.normalizePath(ZF) === file) {
-                            delete ZIP_FILE.files[ZF];
-                            found = true;
-                        }
+                for (const ZF of [...ZIP_FILE.getEntries()]) {
+                    if (deploy_helpers.normalizePath(ZF.entryName) === file) {
+                        ZIP_FILE.deleteFile(ZF.entryName);
+                        found = true;
                     }
                 }
 
@@ -95,11 +91,8 @@ class ZipPlugin extends deploy_plugins.PluginBase<ZipTarget> {
             }
         }
 
-        const ZIPPED_DATA = new Buffer(ZIP_FILE.generate({
-            base64: false,
-            comment: deploy_contracts.ZIP_COMMENT,
-            compression: 'DEFLATE',
-        }), 'binary');
+        ZIP_FILE.addZipComment(deploy_contracts.ZIP_COMMENT);
+        const ZIPPED_DATA: Buffer = ZIP_FILE.toBuffer();
 
         await deploy_helpers.writeFile(LATEST_ZIP, ZIPPED_DATA);
 
@@ -116,20 +109,16 @@ class ZipPlugin extends deploy_plugins.PluginBase<ZipTarget> {
 
         const LATEST_ZIP = await ME.getLatestZipFile(context.target);
         
-        const ZIP_FILE = Zip(await deploy_helpers.readFile(LATEST_ZIP), {
-            base64: false,
-        });
+        const ZIP_FILE = new AdmZip(await deploy_helpers.readFile(LATEST_ZIP));
 
         const FIND_ENTRY = (file: string) => {
             file = deploy_helpers.normalizePath(file);
 
             let entry: symbol | any = Symbol('ZIP_ENTRY_NOT_FOUND');
-            if (ZIP_FILE.files) {
-                for (const ZF in ZIP_FILE.files) {
-                    if (deploy_helpers.normalizePath(ZF) === file) {
-                        entry = ZIP_FILE.files[ZF];
-                        break;
-                    }
+            for (const ZF of ZIP_FILE.getEntries()) {
+                if (deploy_helpers.normalizePath(ZF.entryName) === file) {
+                    entry = ZF;
+                    break;
                 }
             }
 
@@ -149,7 +138,7 @@ class ZipPlugin extends deploy_plugins.PluginBase<ZipTarget> {
                 await F.onBeforeDownload(LATEST_ZIP);
 
                 await F.onDownloadCompleted(null,
-                                            FIND_ENTRY(F.path + '/' + F.name).asNodeBuffer());
+                                            FIND_ENTRY(F.path + '/' + F.name).getData());
             }
             catch (e) {
                 await F.onDownloadCompleted(e);
@@ -342,18 +331,16 @@ class ZipPlugin extends deploy_plugins.PluginBase<ZipTarget> {
                 throw new Error(WORKSPACE.t('plugins.zip.invalidDirectory', DIR));
             }
 
-            const ZIP_FILE = Zip(await deploy_helpers.readFile(ZIP_FILE_PATH), {
-                base64: false,
-            });
+            const ZIP_FILE = new AdmZip(await deploy_helpers.readFile(ZIP_FILE_PATH));
             const ZIP_FILE_NAME = Path.basename(ZIP_FILE_PATH);
 
-            if (ZIP_FILE.files) {
+            {
                 const SETUP_AND_ADD_FILE_INFO = (zipEntry: any, f: deploy_files.FileInfo) => {
-                    const DATA: Buffer = zipEntry.asNodeBuffer();
+                    const DATA: Buffer = zipEntry.getData();
 
                     // fi.time
-                    if (!deploy_helpers.isEmptyString(zipEntry.date)) {
-                        (<any>f)['time'] = Moment.utc(zipEntry.date);
+                    if (zipEntry.header && zipEntry.header.time) {
+                        (<any>f)['time'] = Moment.utc(zipEntry.header.time);
                     }
 
                     if (DATA) {
@@ -373,13 +360,13 @@ class ZipPlugin extends deploy_plugins.PluginBase<ZipTarget> {
                     RESULT.files.push(f);
                 };
 
-                for (const FILENAME in ZIP_FILE.files) {
-                    const ZIP_ENTRY = ZIP_FILE.files[FILENAME];
+                for (const ZIP_ENTRY of ZIP_FILE.getEntries()) {
+                    const FILENAME = ZIP_ENTRY.entryName;
                     if (!ZIP_ENTRY) {
                         continue;
                     }
 
-                    if (deploy_helpers.toBooleanSafe(ZIP_ENTRY.dir)) {
+                    if (deploy_helpers.toBooleanSafe(ZIP_ENTRY.isDirectory)) {
                         continue;
                     }
 
@@ -518,7 +505,7 @@ class ZipPlugin extends deploy_plugins.PluginBase<ZipTarget> {
         const ZIP_FILE_PATH = Path.join(await this.getTargetDirectory(context.target, true),
                                         ZIP_FILENAME.name);
 
-        let ZIPFile = new Zip();
+        let ZIPFile = new AdmZip();
 
         for (const F of context.files) {
             if (context.isCancelling) {
@@ -528,8 +515,8 @@ class ZipPlugin extends deploy_plugins.PluginBase<ZipTarget> {
             try {
                 await F.onBeforeUpload(ZIP_FILE_PATH);
 
-                ZIPFile.file(deploy_helpers.normalizePath(F.path + '/' + F.name),
-                             await F.read());
+                ZIPFile.addFile(deploy_helpers.normalizePath(F.path + '/' + F.name),
+                                await F.read());
 
                 await F.onUploadCompleted();
             }
@@ -538,11 +525,8 @@ class ZipPlugin extends deploy_plugins.PluginBase<ZipTarget> {
             }
         }
 
-        const ZIPPED_DATA = new Buffer(ZIPFile.generate({
-            base64: false,
-            comment: deploy_contracts.ZIP_COMMENT,
-            compression: 'DEFLATE',
-        }), 'binary');
+        ZIPFile.addZipComment(deploy_contracts.ZIP_COMMENT);
+        const ZIPPED_DATA: Buffer = ZIPFile.toBuffer();
 
         if (await deploy_helpers.exists(ZIP_FILE_PATH)) {
             if (ZIP_FILENAME.isCustom) {

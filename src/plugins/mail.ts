@@ -21,7 +21,7 @@ import * as deploy_plugins from '../plugins';
 import * as deploy_targets from '../targets';
 import * as Enumerable from 'node-enumerable';
 import * as Mailer from 'nodemailer';
-const Zip = require('node-zip');
+const AdmZip = require('adm-zip');
 
 
 /**
@@ -96,7 +96,7 @@ class MailPlugin extends deploy_plugins.PluginBase<MailTarget> {
 
         const TARGET = context.target;
 
-        const ZIPFile = new Zip();
+        const ZIPFile = new AdmZip();
         const ZIPFilename = deploy_targets.getZipFileName(context.target);
 
         let from = deploy_helpers.normalizeString(
@@ -159,11 +159,8 @@ class MailPlugin extends deploy_plugins.PluginBase<MailTarget> {
             };
         }
 
-        const ZIPPED_DATA = new Buffer(ZIPFile.generate({
-            base64: false,
-            comment: deploy_contracts.ZIP_COMMENT,
-            compression: 'DEFLATE',
-        }), 'binary');
+        ZIPFile.addZipComment(deploy_contracts.ZIP_COMMENT);
+        const ZIPPED_DATA: Buffer = ZIPFile.toBuffer();
 
         const MAIL_OPTS: Mailer.SendMailOptions = {
             from: from,
@@ -198,8 +195,8 @@ class MailPlugin extends deploy_plugins.PluginBase<MailTarget> {
             try {
                 await F.onBeforeUpload(TO.join(', '));
 
-                ZIPFile.file(deploy_helpers.normalizePath(F.path + '/' + F.name),
-                             await F.read());
+                ZIPFile.addFile(deploy_helpers.normalizePath(F.path + '/' + F.name),
+                                await F.read());
 
                 await F.onUploadCompleted();
             }
