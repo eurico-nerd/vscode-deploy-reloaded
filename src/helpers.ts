@@ -546,7 +546,6 @@ export function invokeForTempFile<TResult = any>(action: (path: string) => TResu
 
         try {
             TMP.tmpName({
-                keep: true,
                 prefix: opts.prefix,
                 postfix: opts.postfix,
             }, (err, tf) => {
