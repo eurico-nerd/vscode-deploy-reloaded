@@ -4452,6 +4452,9 @@ export class Workspace extends deploy_helpers.WorkspaceBase implements deploy_co
     /**
      * Gets the root path of that workspace.
      */
+    // @ts-expect-error -- the base class (vscode-helpers WorkspaceBase) declares
+    // rootPath as a readonly property; overriding it with a getter is valid at
+    // runtime but trips TS2611. Revisit when vscode-helpers is updated/replaced.
     public get rootPath(): string {
         let rp = this._rootPath;
         if (false === rp) {
@@ -4995,6 +4998,11 @@ export class WorkspaceMemento implements vscode.Memento {
             this.normalizeKey(key),
             defaultValue
         );
+    }
+
+    /** @inheritdoc */
+    public keys(): readonly string[] {
+        return this._MEMENTO.keys();
     }
 
     private normalizeKey(key: any) {

@@ -285,7 +285,7 @@ export async function pullAllOpenFiles(workspaces: deploy_workspaces.Workspace |
         return;
     }
 
-    const DOCUMENTS = deploy_helpers.asArray(vscode.workspace.textDocuments).filter(d => {
+    const DOCUMENTS = deploy_helpers.asArray([...vscode.workspace.textDocuments]).filter(d => {
         return !d.isClosed &&
                !d.isUntitled;
     });

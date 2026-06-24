@@ -21,9 +21,9 @@ import * as deploy_workspaces from './workspaces';
 import * as vscode from 'vscode';
 
 
-let buildTaskTimer: NodeJS.Timer;
+let buildTaskTimer: NodeJS.Timeout;
 let gitPullAlreadyRun = false;
-let gitPullTimer: NodeJS.Timer;
+let gitPullTimer: NodeJS.Timeout;
 
 /**
  * Runs build task on startup.

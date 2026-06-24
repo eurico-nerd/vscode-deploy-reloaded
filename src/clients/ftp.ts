@@ -440,7 +440,7 @@ export abstract class FTPClientBase extends deploy_clients.AsyncFileListBase {
             const WRITE_TO = deploy_helpers.normalizeString(entry.writeOutputTo);
             if ('' !== WRITE_TO) {
                 let outputToWrite: any = _.isNil(res) ? res
-                                                      : res.toString(enc);
+                                                      : res.toString(<BufferEncoding>enc);
 
                 const EXECUTE_BEFORE_WRITE = deploy_helpers.toStringSafe( entry.executeBeforeWriteOutputTo );
                 if (!deploy_helpers.isEmptyString(EXECUTE_BEFORE_WRITE)) {
@@ -615,7 +615,7 @@ export abstract class FTPClientBase extends deploy_clients.AsyncFileListBase {
      * 
      * @param {string} file The path to the destination directory.
      */
-    public abstract async rmdir(path: string): Promise<void>;
+    public abstract rmdir(path: string): Promise<void>;
 
     /** @inheritdoc */
     public async removeFolder(path: string): Promise<boolean> {

@@ -90,13 +90,13 @@ export abstract class AsyncFileListBase extends deploy_helpers.DisposableBase im
     private readonly _CONNECTION_VALUES: deploy_contracts.KeyValuePairs = {};
 
     /** @inheritdoc */
-    public abstract async deleteFile(path: string): Promise<boolean>;
+    public abstract deleteFile(path: string): Promise<boolean>;
 
     /** @inheritdoc */
-    public abstract async downloadFile(path: string): Promise<Buffer>;
+    public abstract downloadFile(path: string): Promise<Buffer>;
 
     /** @inheritdoc */
-    public abstract async listDirectory(path: string): Promise<deploy_files.FileSystemInfo[]>;
+    public abstract listDirectory(path: string): Promise<deploy_files.FileSystemInfo[]>;
 
     /**
      * Normalizes a name for a value.
@@ -200,7 +200,7 @@ export abstract class AsyncFileListBase extends deploy_helpers.DisposableBase im
     public abstract get type(): string;
 
     /** @inheritdoc */
-    public abstract async uploadFile(path: string, data: Buffer): Promise<void>;
+    public abstract uploadFile(path: string, data: Buffer): Promise<void>;
 
     /** @inheritdoc */
     public readonly values: deploy_values.Value[] = [];

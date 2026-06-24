@@ -118,7 +118,7 @@ export async function getStringContent(key: RepositoryKey, enc?: string): Promis
     const DATA = await getContent(key);
     if (DATA) {
         return deploy_resources.replaceTemplateVars(
-            DATA.toString(enc)
+            DATA.toString(<BufferEncoding>enc)
         );
     }
 }
@@ -140,7 +140,7 @@ export function getStringContentSync(key: RepositoryKey, enc?: string): string {
     const DATA = getContentSync(key);
     if (DATA) {
         return deploy_resources.replaceTemplateVars(
-            DATA.toString(enc)
+            DATA.toString(<BufferEncoding>enc)
         );
     }
 }

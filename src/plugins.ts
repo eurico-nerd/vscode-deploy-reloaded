@@ -624,7 +624,7 @@ export abstract class FileToUploadBase implements FileToUpload {
      * 
      * @return {Promise<Buffer>} The promise with the read data.
      */
-    protected abstract async onRead();
+    protected abstract onRead();
 
     /**
      * The data transformer.

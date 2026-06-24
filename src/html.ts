@@ -65,7 +65,7 @@ let nextHtmlDocId = Number.MIN_SAFE_INTEGER;
  */
 export async function openHtmlDocument(html: string, title?: string, id?: any): Promise<any> {
     let body: Buffer;
-    let enc = 'utf8';
+    let enc: BufferEncoding = 'utf8';
     if (!deploy_helpers.isNullOrUndefined(html)) {
         body = new Buffer(deploy_helpers.toStringSafe(html), enc);
     }

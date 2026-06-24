@@ -495,14 +495,12 @@ export class TcpProxy extends deploy_helpers.DisposableBase {
                     COMPLETED(err);
                 });         
                 
-                NEW_SERVER.listen(PORT, function(err) {
-                    if (!err) {
-                        ME._server = NEW_SERVER;
+                NEW_SERVER.listen(PORT, function() {
+                    ME._server = NEW_SERVER;
 
-                        ME.emit(EVENT_STARTED);
-                    }
+                    ME.emit(EVENT_STARTED);
 
-                    COMPLETED(err);
+                    COMPLETED(null);
                 });
             }
             catch (e) {

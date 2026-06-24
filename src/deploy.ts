@@ -297,7 +297,7 @@ export async function deployAllOpenFiles(workspaces: deploy_workspaces.Workspace
         return;
     }
 
-    const DOCUMENTS = deploy_helpers.asArray(vscode.workspace.textDocuments).filter(d => {
+    const DOCUMENTS = deploy_helpers.asArray([...vscode.workspace.textDocuments]).filter(d => {
         return !d.isClosed &&
                !d.isUntitled;
     });
@@ -1630,7 +1630,7 @@ async function saveBeforeDeploy(target: deploy_targets.Target, files: string[]) 
         return;
     }
 
-    const DIRTY_TEXT_EDITORS = Enumerable.from(deploy_helpers.asArray(vscode.window.visibleTextEditors)).where(te => {
+    const DIRTY_TEXT_EDITORS = Enumerable.from(deploy_helpers.asArray([...vscode.window.visibleTextEditors])).where(te => {
         return te.document &&
                !te.document.isUntitled &&
                !deploy_helpers.isEmptyString(te.document.fileName) &&
