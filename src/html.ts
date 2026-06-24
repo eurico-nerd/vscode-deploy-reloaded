@@ -122,7 +122,6 @@ export async function openMarkdownDocument(md: string, opts?: MarkdownDocumentOp
         breaks: true,
         gfm: true,
         langPrefix: '',
-        tables: true,
     };
 
     const CSS = deploy_helpers.toStringSafe(opts.css);
