@@ -18,7 +18,7 @@
 import * as deploy_helpers from '../../helpers';
 import * as deploy_targets from '../../targets';
 import * as Enumerable from 'node-enumerable';
-const Slack = require('@slack/client');
+const Slack = require('@slack/web-api');
 
 
 /**
@@ -123,7 +123,9 @@ export async function execute(context: deploy_targets.TargetOperationExecutionCo
     for (const C of CHANNELS) {
         const CLIENT = new Slack.WebClient(TOKEN);
 
-        await CLIENT.chat.postMessage(C, msg, {
+        await CLIENT.chat.postMessage({
+            channel: C,
+            text: msg,
             link_names: true,
             mrkdwn: true,
             parse: 'full',
