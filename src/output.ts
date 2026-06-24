@@ -107,6 +107,16 @@ export class OutputChannelWrapper extends deploy_helpers.DisposableBase implemen
     }
 
     /** @inheritdoc */
+    public replace(value: any) {
+        value = deploy_helpers.toStringSafe(value);
+
+        this.invokeForBaseChannel(this.baseChannel.replace,
+                                  [ value ]);
+
+        this.sendToWriters(value, false);
+    }
+
+    /** @inheritdoc */
     public hide() {
         this.invokeForBaseChannel(this.baseChannel.hide, arguments);
     }

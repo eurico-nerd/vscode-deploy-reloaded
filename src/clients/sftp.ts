@@ -467,7 +467,7 @@ export class SFTPClient extends deploy_clients.AsyncFileListBase {
                                     const WRITE_TO = deploy_helpers.normalizeString(entry.writeOutputTo);
                                     if ('' !== WRITE_TO) {
                                         let outputToWrite: any = _.isNil(output) ? output
-                                                                                 : output.toString(enc);
+                                                                                 : output.toString(<BufferEncoding>enc);
 
                                         const EXECUTE_BEFORE_WRITE = deploy_helpers.toStringSafe( entry.executeBeforeWriteOutputTo );
                                         if (!deploy_helpers.isEmptyString(EXECUTE_BEFORE_WRITE)) {
@@ -550,7 +550,7 @@ export class SFTPClient extends deploy_clients.AsyncFileListBase {
 
                                     try {
                                         if (!Buffer.isBuffer(chunk)) {
-                                            chunk = new Buffer(deploy_helpers.toStringSafe(chunk), enc);
+                                            chunk = new Buffer(deploy_helpers.toStringSafe(chunk), <BufferEncoding>enc);
                                         }
 
                                         output = Buffer.concat([ output, chunk ]);

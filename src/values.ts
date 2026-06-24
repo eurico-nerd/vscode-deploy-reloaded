@@ -566,7 +566,7 @@ function fromBuffer(buff: Buffer, format?: string, enc?: string,
         case '':
         case 'str':
         case 'string':
-            return buff.toString(enc);
+            return buff.toString(<BufferEncoding>enc);
 
         case 'bin':
         case 'binary':
@@ -580,14 +580,14 @@ function fromBuffer(buff: Buffer, format?: string, enc?: string,
 
         case 'json':
             return JSON.parse(
-                buff.toString(enc)
+                buff.toString(<BufferEncoding>enc)
             );
 
         case 'template':
         case 'tpl':
             return replaceWithValues(
                 values,
-                buff.toString(enc),
+                buff.toString(<BufferEncoding>enc),
             );
 
         default:

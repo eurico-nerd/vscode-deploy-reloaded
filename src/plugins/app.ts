@@ -976,7 +976,7 @@ class AppPlugin extends deploy_plugins.PluginBase<AppTarget> {
                                         const BUFF = await deploy_helpers.asBuffer(GET_INPUT_RESULT);
                                         if (BUFF) {
                                             if (false !== ENC) {
-                                                inputValue = BUFF.toString(ENC);
+                                                inputValue = BUFF.toString(<BufferEncoding>ENC);
                                             }
                                             else {
                                                 inputValue = BUFF.toString();
@@ -1030,7 +1030,7 @@ class AppPlugin extends deploy_plugins.PluginBase<AppTarget> {
                     };
 
                     if (false !== ENC) {
-                        EXEC_OPTS.encoding = ENC;
+                        EXEC_OPTS.encoding = <BufferEncoding>ENC;
                     }
 
                     if (false !== stdInput) {
@@ -1050,7 +1050,7 @@ class AppPlugin extends deploy_plugins.PluginBase<AppTarget> {
                             outputStr = output.toString();
                         }
                         else {
-                            outputStr = output.toString(ENC);
+                            outputStr = output.toString(<BufferEncoding>ENC);
                         }
 
                         deploy_log.CONSOLE.debug(

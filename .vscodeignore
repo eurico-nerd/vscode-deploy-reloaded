@@ -12,4 +12,4 @@ package-lock.json
 tsconfig.json
 pushall.sh
 typedoc.cmd
-tslint.json
+eslint.config.mjs

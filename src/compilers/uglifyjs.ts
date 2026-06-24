@@ -81,10 +81,10 @@ export async function compile(compileOpts: CompileOptions) {
         ).trim();
     }
 
-    let enc = deploy_helpers.normalizeString(
+    let enc = <BufferEncoding>deploy_helpers.normalizeString(
         WORKSPACE.replaceWithValues(compileOpts.encoding)
     );
-    if ('' === enc) {
+    if ('' === <string>enc) {
         enc = 'utf8';
     }
 
