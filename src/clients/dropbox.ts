@@ -19,7 +19,7 @@ import * as deploy_clients from '../clients';
 import * as deploy_files from '../files';
 import * as deploy_helpers from '../helpers';
 import * as deploy_log from '../log';
-const Dropbox = require('dropbox');
+const { Dropbox } = require('dropbox');
 import * as Moment from 'moment';
 
 
@@ -88,7 +88,7 @@ export class DropBoxClient extends deploy_clients.AsyncFileListBase {
             path: path,
         });
 
-        return new Buffer(META_DATA.fileBinary, 'binary');
+        return new Buffer(META_DATA.result.fileBinary, 'binary');
     }
 
     /** @inheritdoc */
@@ -105,8 +105,8 @@ export class DropBoxClient extends deploy_clients.AsyncFileListBase {
             path: path,
             recursive: false,
         });
-        if (LIST && LIST.entries) {
-            for (const ENTRY of LIST.entries) {
+        if (LIST && LIST.result && LIST.result.entries) {
+            for (const ENTRY of LIST.result.entries) {
                 switch (deploy_helpers.normalizeString(ENTRY['.tag'])) {
                     case 'file':
                         {
