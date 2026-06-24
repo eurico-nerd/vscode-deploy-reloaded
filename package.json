@@ -80596,7 +80596,8 @@
  "dependencies": {
   "@icetee/ftp": "^1.0.3",
   "@slack/web-api": "^7.8.0",
-  "aws-sdk": "^2.533.0",
+  "@aws-sdk/client-s3": "^3.658.0",
+  "@aws-sdk/credential-providers": "^3.658.0",
   "azure-storage": "^2.10.3",
   "coffeescript": "^2.4.1",
   "compare-versions": "^3.5.1",
