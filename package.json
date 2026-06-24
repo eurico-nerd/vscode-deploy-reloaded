@@ -80637,7 +80637,7 @@
   "ssh2-sftp-client": "^12.0.1",
   "tmp": "^0.2.3",
   "uglify-js": "^3.6.0",
-  "vscode-helpers": "^5.1.1",
+  "vscode-helpers": "^8.0.0",
   "ws": "^5.2.2"
  }
 }

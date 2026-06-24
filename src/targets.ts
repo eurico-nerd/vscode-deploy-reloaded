@@ -814,7 +814,7 @@ export async function getScopeDirectoriesForTargetFolderMappings(target: Target)
             }, {
                 absolute: true,
                 dot: true,
-                nocase: true,
+                caseSensitiveMatch: false,
                 onlyDirectories: true,
                 onlyFiles: false,
             })).map((x: string) => {
