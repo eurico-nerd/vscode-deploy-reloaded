@@ -15,7 +15,22 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-import * as AWS from 'aws-sdk';
+import {
+    DeleteObjectCommand,
+    GetObjectCommand,
+    ListObjectsV2Command,
+    PutObjectCommand,
+    S3Client,
+} from '@aws-sdk/client-s3';
+import {
+    fromCognitoIdentityPool,
+    fromContainerMetadata,
+    fromEnv,
+    fromIni,
+    fromInstanceMetadata,
+    fromTemporaryCredentials,
+    fromWebToken,
+} from '@aws-sdk/credential-providers';
 import * as deploy_clients from '../clients';
 import * as deploy_files from '../files';
 import * as deploy_helpers from '../helpers';
@@ -104,17 +119,71 @@ interface SharedIniFileCredentialsOptions {
  */
 export const DEFAULT_ACL = 'public-read';
 
-const KNOWN_CREDENTIAL_CLASSES = {
-    'cognito': AWS.CognitoIdentityCredentials,
-    'ec2': AWS.ECSCredentials,
-    'ec2meta': AWS.EC2MetadataCredentials,
-    'environment': AWS.EnvironmentCredentials,
-    'file': AWS.FileSystemCredentials,
-    'saml': AWS.SAMLCredentials,
-    'shared': AWS.SharedIniFileCredentials,
-    'temp': AWS.TemporaryCredentials,
-    'web': AWS.WebIdentityCredentials,
-};
+/**
+ * Builds an AWS SDK v3 credential provider from a legacy credential type and
+ * its (already pre-processed) config. Returns a provider/credentials object.
+ *
+ * Note: the legacy 'saml' type (SAMLCredentials) has no AWS SDK v3 equivalent
+ * and is reported as unsupported. The legacy 'file' type (FileSystemCredentials)
+ * is implemented by reading a JSON credentials file.
+ */
+async function buildAwsCredentials(type: string, config: any): Promise<any> {
+    switch (deploy_helpers.normalizeString(type)) {
+        case '':
+        case 'shared':
+            {
+                let profile: string;
+                let filepath: string;
+                if (deploy_helpers.isObject(config)) {
+                    profile = deploy_helpers.toStringSafe((<any>config).profile);
+                    filepath = deploy_helpers.toStringSafe((<any>config).filename);
+                }
+                else {
+                    profile = deploy_helpers.toStringSafe(config);
+                }
+
+                return fromIni({
+                    profile: deploy_helpers.isEmptyString(profile) ? undefined : profile,
+                    filepath: deploy_helpers.isEmptyString(filepath) ? undefined : filepath,
+                });
+            }
+
+        case 'environment':
+            return fromEnv();
+
+        case 'ec2meta':
+            return fromInstanceMetadata();
+
+        case 'ec2':
+            return fromContainerMetadata();
+
+        case 'temp':
+            return fromTemporaryCredentials(config || <any>{});
+
+        case 'web':
+            return fromWebToken(config || <any>{});
+
+        case 'cognito':
+            return fromCognitoIdentityPool(config || <any>{});
+
+        case 'file':
+            {
+                // legacy FileSystemCredentials: a JSON file with the credentials
+                const RAW = await deploy_helpers.readFile(deploy_helpers.toStringSafe(config));
+                const JSON_CREDS = JSON.parse(RAW.toString('utf8'));
+
+                return {
+                    accessKeyId: JSON_CREDS.accessKeyId,
+                    secretAccessKey: JSON_CREDS.secretAccessKey,
+                    sessionToken: JSON_CREDS.sessionToken,
+                };
+            }
+
+        default:
+            // e.g. 'saml' (no AWS SDK v3 equivalent)
+            throw new Error(i18.t('s3bucket.credentialTypeNotSupported', type));
+    }
+}
 
 
 /**
@@ -130,7 +199,7 @@ export class S3BucketClient extends deploy_clients.AsyncFileListBase {
         super();
     }
 
-    private async createInstance(): Promise<AWS.S3> {
+    private async createInstance(): Promise<{ s3: S3Client; bucket: string }> {
         const AWS_DIR = Path.resolve(
             Path.join(
                 OS.homedir(),
@@ -215,14 +284,10 @@ export class S3BucketClient extends deploy_clients.AsyncFileListBase {
             bucket = 'vscode-deploy-reloaded';
         }
 
-        let credentialClass: any = AWS.SharedIniFileCredentials;
         let credentialConfig: any;
         let credentialType: string;
         if (this.options.credentials) {
             credentialType = deploy_helpers.normalizeString(this.options.credentials.type);
-            if ('' !== credentialType) {
-                credentialClass = KNOWN_CREDENTIAL_CLASSES[credentialType];
-            }
 
             credentialConfig = this.options.credentials.config;
 
@@ -286,22 +351,26 @@ export class S3BucketClient extends deploy_clients.AsyncFileListBase {
             }
         }
 
-        if (!credentialClass) {
-            throw new Error(i18.t('s3bucket.credentialTypeNotSupported',
-                                  credentialType));
-        }
+        const CREDENTIALS = await buildAwsCredentials(credentialType, credentialConfig);
 
-        if (this.options.customOpts) {
-            AWS.config.update(this.options.customOpts);
-        }
-
-        return new AWS.S3({
-            credentials: new credentialClass(credentialConfig),
-            params: {
-                Bucket: bucket,
-                ACL: this.getDefaultAcl(),
+        // AWS SDK v3 has no global config and requires a region. Honour any
+        // region/endpoint/etc. supplied via customOpts; fall back to env vars.
+        const CLIENT_CONFIG: any = Object.assign(
+            {
+                region: process.env.AWS_REGION ||
+                        process.env.AWS_DEFAULT_REGION ||
+                        'us-east-1',
             },
-        });
+            this.options.customOpts || {},
+        );
+        if (CREDENTIALS) {
+            CLIENT_CONFIG.credentials = CREDENTIALS;
+        }
+
+        return {
+            s3: new S3Client(CLIENT_CONFIG),
+            bucket: bucket,
+        };
     }
 
     /** @inheritdoc */
@@ -314,20 +383,19 @@ export class S3BucketClient extends deploy_clients.AsyncFileListBase {
             const COMPLETED = deploy_helpers.createCompletedAction(resolve, reject);
 
             try {
-                const S3 = await ME.createInstance();
+                const { s3, bucket } = await ME.createInstance();
 
-                const PARAMS: any = {
-                    Key: path,
-                };
+                try {
+                    await s3.send(new DeleteObjectCommand({
+                        Bucket: bucket,
+                        Key: path,
+                    }));
 
-                S3.deleteObject(PARAMS, (err) => {
-                    if (err) {
-                        COMPLETED(null, false);
-                    }
-                    else {
-                        COMPLETED(null, true);
-                    }
-                });
+                    COMPLETED(null, true);
+                }
+                catch (e) {
+                    COMPLETED(null, false);
+                }
             }
             catch (e) {
                 COMPLETED(e);
@@ -345,24 +413,19 @@ export class S3BucketClient extends deploy_clients.AsyncFileListBase {
             const COMPLETED = deploy_helpers.createCompletedAction(resolve, reject);
 
             try {
-                const S3 = await ME.createInstance();
+                const { s3, bucket } = await ME.createInstance();
 
-                const PARAMS: any = {
+                const RESULT = await s3.send(new GetObjectCommand({
+                    Bucket: bucket,
                     Key: path,
-                };
+                }));
 
-                S3.getObject(PARAMS, (err, data) => {
-                    if (err) {
-                        COMPLETED(err);
-                    }
-                    else {
-                        deploy_helpers.asBuffer(data.Body).then((data) => {
-                            COMPLETED(null, data);
-                        }).catch((err) => {
-                            COMPLETED(err);
-                        });
-                    }
-                });
+                // In v3 the body is a stream; collect it into a Buffer.
+                const DATA = Buffer.from(
+                    await (<any>RESULT.Body).transformToByteArray()
+                );
+
+                COMPLETED(null, DATA);
             }
             catch (e) {
                 COMPLETED(e);
@@ -383,7 +446,7 @@ export class S3BucketClient extends deploy_clients.AsyncFileListBase {
         return new Promise<deploy_files.FileSystemInfo[]>(async (resolve, reject) => {
             const COMPLETED = deploy_helpers.createCompletedAction(resolve, reject);
 
-            const ALL_OBJS: AWS.S3.Object[] = [];
+            const ALL_OBJS: any[] = [];
             const ITEMS: deploy_files.FileSystemInfo[] = [];
             const ALL_LOADED = () => {
                 const DIRS_ALREADY_ADDED: { [ dir: string ]: deploy_files.DirectoryInfo } = {};
@@ -436,7 +499,7 @@ export class S3BucketClient extends deploy_clients.AsyncFileListBase {
                 COMPLETED(null, ITEMS);
             };
 
-            const HANDLE_RESULT = (result: AWS.S3.ListObjectsV2Output) => {
+            const HANDLE_RESULT = (result: any) => {
                 if (!result) {
                     return;
                 }
@@ -454,52 +517,25 @@ export class S3BucketClient extends deploy_clients.AsyncFileListBase {
             };
 
             try {
-                const S3 = await ME.createInstance();
+                const { s3, bucket } = await ME.createInstance();
 
-                let currentContinuationToken: string | false = false;
+                let currentContinuationToken: string = undefined;
 
-                let nextSegment: () => void;
-                nextSegment = () => {
-                    try {
-                        if (false !== currentContinuationToken) {
-                            if (deploy_helpers.isEmptyString(currentContinuationToken)) {
-                                ALL_LOADED();
-                                return;
-                            }
-                        }
-                        else {
-                            currentContinuationToken = undefined;
-                        }
+                do {
+                    const RESULT = await s3.send(new ListObjectsV2Command({
+                        Bucket: bucket,
+                        ContinuationToken: currentContinuationToken,
+                        Prefix: path,
+                    }));
 
-                        const PARAMS: AWS.S3.Types.ListObjectsV2Request = {
-                            Bucket: undefined,
-                            ContinuationToken: <any>currentContinuationToken,
-                            Prefix: path,
-                        };
+                    HANDLE_RESULT(RESULT);
 
-                        S3.listObjectsV2(PARAMS, (err, result) => {
-                            try {
-                                if (err) {
-                                    COMPLETED(err);
-                                }
-                                else {
-                                    currentContinuationToken = result.NextContinuationToken;
+                    currentContinuationToken = RESULT.IsTruncated ? RESULT.NextContinuationToken
+                                                                  : undefined;
+                }
+                while (!deploy_helpers.isEmptyString(currentContinuationToken));
 
-                                    HANDLE_RESULT(result);
-                                    nextSegment();
-                                }
-                            }
-                            catch (e) {
-                                COMPLETED(e);
-                            }
-                        });
-                    }
-                    catch (e) {
-                        COMPLETED(e);
-                    }
-                };
-
-                nextSegment();
+                ALL_LOADED();
             }
             catch (e) {
                 COMPLETED(e);
@@ -526,7 +562,7 @@ export class S3BucketClient extends deploy_clients.AsyncFileListBase {
             const COMPLETED = deploy_helpers.createCompletedAction(resolve, reject);
 
             try {
-                const S3 = await ME.createInstance();
+                const { s3, bucket } = await ME.createInstance();
 
                 let contentType = MimeTypes.lookup( Path.basename(path) );
                 if (false === contentType) {
@@ -545,17 +581,15 @@ export class S3BucketClient extends deploy_clients.AsyncFileListBase {
                     acl = undefined;
                 }
 
-                const PARAMS: AWS.S3.PutObjectRequest = {
-                    ACL: acl,
-                    Bucket: undefined,
-                    ContentType: contentType,
+                await s3.send(new PutObjectCommand({
+                    ACL: <any>acl,
+                    Bucket: bucket,
+                    ContentType: <any>contentType,
                     Key: path,
                     Body: data,
-                };
+                }));
 
-                S3.putObject(PARAMS, (err) => {
-                    COMPLETED(err);
-                });
+                COMPLETED(null);
             }
             catch (e) {
                 COMPLETED(e);
