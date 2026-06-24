@@ -22,7 +22,7 @@ import * as deploy_helpers from '../helpers';
 import * as deploy_plugins from '../plugins';
 import * as deploy_targets from '../targets';
 import * as Enumerable from 'node-enumerable';
-const Zip = require('node-zip');
+const AdmZip = require('adm-zip');
 
 
 /**
@@ -144,21 +144,18 @@ class SlackPlugin extends deploy_plugins.PluginBase<SlackTarget> {
                     });
                 }
                 else {
-                    const ZIPFile = new Zip();
+                    const ZIPFile = new AdmZip();
                     const ZIPFilename = deploy_targets.getZipFileName(context.target);
 
                     for (let i = 0; i < FILES_TO_UPLOAD.length; i++) {
                         await FOR_FILE(i, async (f) => {
-                            ZIPFile.file(deploy_helpers.normalizePath(f.path + '/' + f.name),
-                                         await f.read());
+                            ZIPFile.addFile(deploy_helpers.normalizePath(f.path + '/' + f.name),
+                                            await f.read());
                         });
                     }
 
-                    const ZIPPED_DATA = new Buffer(ZIPFile.generate({
-                        base64: false,
-                        comment: deploy_contracts.ZIP_COMMENT,
-                        compression: 'DEFLATE',
-                    }), 'binary');
+                    ZIPFile.addZipComment(deploy_contracts.ZIP_COMMENT);
+                    const ZIPPED_DATA: Buffer = ZIPFile.toBuffer();
 
                     await client.uploadFile(C + '/' + ZIPFilename,
                                             ZIPPED_DATA);
