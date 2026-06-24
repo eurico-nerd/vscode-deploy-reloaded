@@ -2,7 +2,7 @@ out
 node_modules
 .vs
 .vscode-test/
-.vsix
+*.vsix
 /pushall.sh
 /typedoc.cmd
 /tsdoc
