@@ -80537,9 +80537,9 @@
   "vscode:prepublish": "npm run compile",
   "compile": "tsc -p ./",
   "watch": "tsc -watch -p ./",
-  "postinstall": "node ./node_modules/vscode/bin/install",
-  "test": "npm run compile && node ./node_modules/vscode/bin/test",
-  "tslint": "tslint --project tsconfig.json -t verbose"
+  "lint": "eslint src --ext ts",
+  "package": "vsce package",
+  "test": "npm run compile && npm run lint"
  },
  "devDependencies": {
   "@types/copy-paste": "^1.1.30",
@@ -80561,7 +80561,7 @@
   "@types/moment-timezone": "^0.5.12",
   "@types/mssql": "^4.3.1",
   "@types/mysql": "^2.15.7",
-  "@types/node": "10.1.4",
+  "@types/node": "^18.19.0",
   "@types/node-emoji": "^1.8.1",
   "@types/nodemailer": "^4.6.8",
   "@types/public-ip": "^2.4.0",
@@ -80569,10 +80569,13 @@
   "@types/sanitize-filename": "^1.6.3",
   "@types/tmp": "0.0.33",
   "@types/uuid": "^3.4.5",
+  "@types/vscode": "^1.38.0",
   "@types/ws": "^5.1.2",
-  "tslint": "^5.20.0",
-  "typescript": "3.4.5",
-  "vscode": "^1.1.36"
+  "@vscode/test-electron": "^2.4.1",
+  "@vscode/vsce": "^3.2.1",
+  "eslint": "^9.17.0",
+  "typescript": "^5.7.2",
+  "typescript-eslint": "^8.18.0"
  },
  "icon": "icon.png",
  "badges": [

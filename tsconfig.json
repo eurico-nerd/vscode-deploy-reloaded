@@ -7,10 +7,12 @@
             "es2017"
         ],
         "sourceMap": true,
-        "rootDir": "src"
+        "rootDir": "src",
+        "skipLibCheck": true
     },
     "exclude": [
         "node_modules",
-        ".vscode-test"
+        ".vscode-test",
+        "src/test"
     ]
 }
