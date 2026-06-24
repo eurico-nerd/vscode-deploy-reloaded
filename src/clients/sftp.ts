@@ -397,7 +397,7 @@ export class SFTPClient extends deploy_clients.AsyncFileListBase {
                 );
 
                 const DOWNLOADED_DATA = await deploy_helpers.asBuffer(
-                    await ME.client.get(path, null, null)
+                    await ME.client.get(path)
                 );
 
                 await this.executeCommandsBy(
