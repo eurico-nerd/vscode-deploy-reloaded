@@ -23,7 +23,7 @@ import * as Enumerable from 'node-enumerable';
 import * as FS from 'fs';
 import * as Moment from 'moment';
 import * as Path from 'path';
-const Slack = require('@slack/client');
+const Slack = require('@slack/web-api');
 
 
 /**
@@ -219,12 +219,7 @@ export class SlackClient extends deploy_clients.AsyncFileListBase {
             try {
                 const CLIENT = ME.createInstance();
 
-                CLIENT.channels.list(function(err, info) {
-                    if (err) {
-                        COMPLETED(err);
-                        return;
-                    }
-
+                CLIENT.conversations.list().then((info: any) => {
                     try {
                         const ITEMS: deploy_files.FileSystemInfo[] = [];
 
@@ -258,6 +253,8 @@ export class SlackClient extends deploy_clients.AsyncFileListBase {
                     catch (e) {
                         COMPLETED(e);
                     }
+                }).catch((err: any) => {
+                    COMPLETED(err);
                 });
             }
             catch (e) {
@@ -347,12 +344,7 @@ export class SlackClient extends deploy_clients.AsyncFileListBase {
                         CLIENT.files.list({
                             channel: CHANNEL,
                             page: currentPage,
-                        }, function(err, info) {
-                            if (err) {
-                                COMPLETED(err);
-                                return;
-                            }
-
+                        }).then((info: any) => {
                             try {
                                 if (info.files) {
                                     for (const FILE of info.files) {
@@ -377,6 +369,8 @@ export class SlackClient extends deploy_clients.AsyncFileListBase {
                             catch (e) {
                                 COMPLETED(e);
                             }
+                        }).catch((err: any) => {
+                            COMPLETED(err);
                         });
                     }
                     catch (e) {
@@ -428,12 +422,15 @@ export class SlackClient extends deploy_clients.AsyncFileListBase {
 
                             const UPLOAD_OPTS = {
                                 file: FS.createReadStream(tempFile),
+                                filename: FILENAME,
                                 filetype: 'auto',
                                 channels: CHANNEL,
                                 title: FILENAME,
                             };
-                            
-                            CLIENT.files.upload(FILENAME, UPLOAD_OPTS, function(err) {
+
+                            CLIENT.files.upload(UPLOAD_OPTS).then(() => {
+                                COMP(null);
+                            }).catch((err: any) => {
                                 COMP(err);
                             });
                         }
