@@ -450,7 +450,11 @@ export async function _1b87f2ee_b636_45b6_807c_0e2d25384b02_1409614337(
 
     // tslint:disable-next-line:no-unused-variable
     const $ip = async (v6 = false, timeout?: number, useHttps = false) => {
-        const PublicIP = require('public-ip');
+        // public-ip is ESM-only since v5. Load it via a dynamic import that
+        // TypeScript will NOT downlevel to require() (which would throw
+        // ERR_REQUIRE_ESM under module:commonjs).
+        const importDynamic: (m: string) => Promise<any> = new Function('m', 'return import(m)') as any;
+        const PublicIP = await importDynamic('public-ip');
 
         v6 = $h.toBooleanSafe(
             await $unwrap(v6)
@@ -470,12 +474,12 @@ export async function _1b87f2ee_b636_45b6_807c_0e2d25384b02_1409614337(
         );
 
         const OPTS = {
-            https: useHttps,
+            onlyHttps: useHttps,
             timeout: timeout,
         };
 
-        const GET_IP = v6 ? PublicIP.v6
-                          : PublicIP.v4;
+        const GET_IP = v6 ? PublicIP.publicIpv6
+                          : PublicIP.publicIpv4;
 
         return await GET_IP(OPTS);
     };    
