@@ -15,12 +15,15 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-import * as AzureStorage from 'azure-storage';
+import {
+    BlobServiceClient,
+    ContainerClient,
+    StorageSharedKeyCredential,
+} from '@azure/storage-blob';
 import * as Crypto from 'crypto';
 import * as deploy_clients from '../clients';
 import * as deploy_files from '../files';
 import * as deploy_helpers from '../helpers';
-import * as FS from 'fs';
 import * as MimeTypes from 'mime-types';
 import * as Moment from 'moment';
 import * as Path from 'path';
@@ -82,19 +85,27 @@ export class AzureBlobClient extends deploy_clients.AsyncFileListBase {
         return normalizedContainer;
     }
 
-    private createInstance(): AzureStorage.BlobService {
+    private createInstance(): ContainerClient {
+        let serviceClient: BlobServiceClient;
+
         if (deploy_helpers.toBooleanSafe(this.options.useDevelopmentStorage)) {
-            return AzureStorage.createBlobService('UseDevelopmentStorage=true');
+            serviceClient = BlobServiceClient.fromConnectionString('UseDevelopmentStorage=true');
+        }
+        else {
+            const ACCOUNT = deploy_helpers.toStringSafe(this.options.account).trim();
+            const ACCESS_KEY = deploy_helpers.toStringSafe(this.options.accessKey).trim();
+
+            const HOST = deploy_helpers.normalizeString(this.options.host);
+            const URL = ('' !== HOST) ? HOST
+                                      : `https://${ ACCOUNT }.blob.core.windows.net`;
+
+            serviceClient = new BlobServiceClient(
+                URL,
+                new StorageSharedKeyCredential(ACCOUNT, ACCESS_KEY),
+            );
         }
 
-        let host = deploy_helpers.normalizeString(this.options.host);
-        if ('' === host) {
-            host = undefined;
-        }
-
-        return AzureStorage.createBlobService(deploy_helpers.toStringSafe(this.options.account).trim(),
-                                              deploy_helpers.toStringSafe(this.options.accessKey).trim(),
-                                              host);
+        return serviceClient.getContainerClient(this.container);
     }
 
     /** @inheritdoc */
@@ -103,24 +114,20 @@ export class AzureBlobClient extends deploy_clients.AsyncFileListBase {
 
         path = toAzurePath(path);
         
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise<boolean>(async (resolve, reject) => {
             const COMPLETED = deploy_helpers.createCompletedAction(resolve, reject);
 
             try {
-                const SERVICE = ME.createInstance();
+                const CONTAINER = ME.createInstance();
 
-                SERVICE.deleteBlob(
-                    ME.container,
-                    path,
-                    (err) => {
-                        if (err) {
-                            COMPLETED(null, false);
-                        }
-                        else {
-                            COMPLETED(null, true);
-                        }
-                    }
-                );
+                try {
+                    await CONTAINER.deleteBlob(path);
+
+                    COMPLETED(null, true);
+                }
+                catch (e) {
+                    COMPLETED(null, false);
+                }
             }
             catch (e) {
                 COMPLETED(e);
@@ -138,38 +145,10 @@ export class AzureBlobClient extends deploy_clients.AsyncFileListBase {
             const COMPLETED = deploy_helpers.createCompletedAction(resolve, reject);
 
             try {
-                const SERVICE = ME.createInstance();
+                const CONTAINER = ME.createInstance();
 
-                const DOWNLOADED_DATA = await deploy_helpers.invokeForTempFile((tmpFile) => {
-                    return new Promise<Buffer>((res, rej) => {
-                        const COMP = deploy_helpers.createCompletedAction(res, rej);
-
-                        try {
-                            const STREAM = FS.createWriteStream(tmpFile);
-
-                            SERVICE.getBlobToStream(
-                                ME.container,
-                                path,
-                                STREAM,
-                                (err) => {
-                                    if (err) {
-                                        COMP(err);    
-                                    }
-                                    else {
-                                        deploy_helpers.readFile(tmpFile).then((data) => {
-                                            COMP(null, data);
-                                        }).catch((e) => {
-                                            COMP(e);
-                                        });
-                                    }
-                                }
-                            );
-                        }
-                        catch (e) {
-                            COMP(e);
-                        }
-                    });
-                });
+                const DOWNLOADED_DATA = await CONTAINER.getBlobClient(path)
+                                                       .downloadToBuffer();
 
                 COMPLETED(null, DOWNLOADED_DATA);
             }
@@ -185,10 +164,10 @@ export class AzureBlobClient extends deploy_clients.AsyncFileListBase {
 
         path = toAzurePath(path);
 
-        return new Promise<deploy_files.FileSystemInfo[]>((resolve, reject) => {
+        return new Promise<deploy_files.FileSystemInfo[]>(async (resolve, reject) => {
             const COMPLETED = deploy_helpers.createCompletedAction(resolve, reject);
 
-            const ALL_RESULTS: AzureStorage.BlobService.BlobResult[] = [];
+            const ALL_RESULTS: any[] = [];
             const ITEMS: deploy_files.FileSystemInfo[] = [];
             const ALL_LOADED = () => {
                 const DIRS_ALREADY_ADDED: { [ dir: string ]: deploy_files.DirectoryInfo } = {};
@@ -241,63 +220,19 @@ export class AzureBlobClient extends deploy_clients.AsyncFileListBase {
                 COMPLETED(null, ITEMS);
             };
 
-            const HANDLE_RESULT = (result: AzureStorage.BlobService.ListBlobsResult) => {
-                if (!result) {
-                    return;
-                }
-
-                const ENTRIES = result.entries;
-                if (!ENTRIES) {
-                    return;
-                }
-
-                for (const E of ENTRIES) {
-                    if (E) {
-                        ALL_RESULTS.push(E);
-                    }
-                }
-            };
-
             try {
-                const SERVICE = ME.createInstance();
+                const CONTAINER = ME.createInstance();
 
-                let currentContinuationToken: AzureStorage.common.ContinuationToken | false = false;
+                // listBlobsFlat() async-iterates and handles pagination internally.
+                for await (const BLOB of CONTAINER.listBlobsFlat()) {
+                    ALL_RESULTS.push({
+                        name: BLOB.name,
+                        contentLength: BLOB.properties.contentLength,
+                        lastModified: BLOB.properties.lastModified,
+                    });
+                }
 
-                let nextSegment: () => void;
-                nextSegment = () => {
-                    try {
-                        if (false !== currentContinuationToken) {
-                            if (deploy_helpers.isEmptyString(currentContinuationToken)) {
-                                ALL_LOADED();
-                                return;
-                            }
-                        }
-                        else {
-                            currentContinuationToken = undefined;
-                        }
-
-                        SERVICE.listBlobsSegmented(
-                            ME.container,
-                            <AzureStorage.common.ContinuationToken>currentContinuationToken,
-                            (err, result) => {
-                                if (err) {
-                                    COMPLETED(err);
-                                    return;
-                                }
-
-                                currentContinuationToken = result.continuationToken;
-                                
-                                HANDLE_RESULT(result);
-                                nextSegment();
-                            }
-                        );
-                    }
-                    catch (e) {
-                        COMPLETED(e);
-                    }
-                };
-
-                nextSegment();
+                ALL_LOADED();
             }
             catch (e) {
                 COMPLETED(e);
@@ -320,35 +255,34 @@ export class AzureBlobClient extends deploy_clients.AsyncFileListBase {
             data = Buffer.alloc(0);
         }
         
-        return new Promise<void>((resolve, reject) => {
+        return new Promise<void>(async (resolve, reject) => {
             const COMPLETED = deploy_helpers.createCompletedAction(resolve, reject);
 
             try {
-                const SERVICE = ME.createInstance();
+                const CONTAINER = ME.createInstance();
 
                 let contentType = MimeTypes.lookup( Path.basename(path) );
                 if (false === contentType) {
                     contentType = 'application/octet-stream';
                 }
 
-                let contentMD5: string;
+                const BLOB_HEADERS: any = {
+                    blobContentType: contentType,
+                };
                 if (deploy_helpers.toBooleanSafe(ME.options.hashContent)) {
-                    contentMD5 = Crypto.createHash('md5').update(data).digest('base64');
+                    // v3 expects the raw MD5 digest bytes (not a base64 string)
+                    BLOB_HEADERS.blobContentMD5 = Crypto.createHash('md5').update(data).digest();
                 }
 
-                SERVICE.createBlockBlobFromText(
-                    ME.container,
-                    path, data,
+                await CONTAINER.getBlockBlobClient(path).upload(
+                    data,
+                    data.length,
                     {
-                        contentSettings: {
-                            contentMD5: contentMD5,
-                            contentType: contentType,
-                        }
+                        blobHTTPHeaders: BLOB_HEADERS,
                     },
-                    (err) => {
-                        COMPLETED(err);
-                    }
                 );
+
+                COMPLETED(null);
             }
             catch (e) {
                 COMPLETED(e);
