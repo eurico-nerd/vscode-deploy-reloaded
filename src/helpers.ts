@@ -31,16 +31,69 @@ import * as TMP from 'tmp';
 import * as URL from 'url';
 import * as vscode from 'vscode';
 import {
-    asArray,
     buildWorkflow,
     cloneObject, cloneObjectFlat, compareValuesBy, createCompletedAction,
-    doesMatch,
+    doesMatch as __vscDoesMatch,
+    glob as __vscGlob,
     isEmptyString,
     normalizeString,
     toBooleanSafe, toStringSafe, tryDispose
 } from 'vscode-helpers';
 
 export * from 'vscode-helpers';
+
+// --- Overrides for vscode-helpers v8 regressions -------------------------
+// v8's asArray() switched to _.isArrayLike(), which treats a string as an
+// array-like value and then throws on `.filter` (a string has no .filter).
+// vscode-helpers v8 also routes glob()/doesMatch() pattern arguments through
+// that same asArray() internally, so passing a bare string pattern crashes.
+// These local exports shadow the re-exported versions (an explicit export
+// takes precedence over `export *`) with string-safe implementations, and the
+// glob()/doesMatch() wrappers normalize patterns to a real array first.
+
+/**
+ * Returns a value as a (new) array. A string is treated as a single element
+ * (NOT as an array-like sequence of characters).
+ *
+ * @param {T|T[]} val The value.
+ * @param {boolean} [removeEmpty] Remove (null)/(undefined) items. Default: true.
+ *
+ * @return {T[]} The value as array.
+ */
+export function asArray<T>(val: T | T[], removeEmpty = true): T[] {
+    const ARR: T[] = Array.isArray(val) ? val : [ val ];
+
+    return ARR.filter(i => {
+        if (toBooleanSafe(removeEmpty, true)) {
+            return !_.isNil(i);
+        }
+
+        return true;
+    });
+}
+
+/**
+ * Wrapper around vscode-helpers' glob() that normalizes the pattern(s) to a
+ * real string array first (see asArray note above).
+ */
+export function glob(patterns: string | string[], opts?: any): Promise<string[]> {
+    return __vscGlob(
+        asArray(patterns).map(p => toStringSafe(p)),
+        opts,
+    );
+}
+
+/**
+ * Wrapper around vscode-helpers' doesMatch() that normalizes the pattern(s)
+ * to a real string array first (see asArray note above).
+ */
+export function doesMatch(val: any, patterns: string | string[], opts?: any): boolean {
+    return __vscDoesMatch(
+        val,
+        asArray(patterns).map(p => toStringSafe(p)),
+        opts,
+    );
+}
 
 /**
  * Result of an execution.
